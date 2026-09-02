@@ -23,9 +23,8 @@ namespace settings
 		struct Defaults
 		{
 			std::uint32_t logLevel;
-			bool enabled;
+			float startingWeight;
 			float perLevel;
-			float maxBonus;
 		} defaults{};
 
 		std::string Lower(std::string a_s)
@@ -93,11 +92,10 @@ namespace settings
 				if (!a_parse(it->second, a_out)) { logger::warn("INI value \"{}\" for {} is not valid; keeping current value", it->second, a_key); }
 			};
 			get("uloglevel:debug", debug::logLevel, ParseUInt);
-			get("benabled:general", general::enabled, ParseBool);
+			get("fstartingweight:general", general::startingWeight, ParseFloat);
 			get("fperlevel:general", general::perLevel, ParseFloat);
-			get("fmaxbonus:general", general::maxBonus, ParseFloat);
-			logger::info("settings loaded from {}: enabled={} perLevel={:.1f} maxBonus={:.1f} logLevel={}",
-						 iniPath, general::enabled, general::perLevel, general::maxBonus, debug::logLevel);
+			logger::info("settings loaded from {}: startingWeight={:.1f} perLevel={:.1f} logLevel={}",
+						 iniPath, general::startingWeight, general::perLevel, debug::logLevel);
 			return true;
 		}
 
@@ -134,16 +132,15 @@ namespace settings
 	{
 		iniPath = (std::filesystem::current_path() / "Data" / "SKSE" / "Plugins" / a_iniFileName).string();
 
-		defaults = { debug::logLevel, general::enabled, general::perLevel, general::maxBonus };
+		defaults = { debug::logLevel, general::startingWeight, general::perLevel };
 
 		// Registered for engine-side consistency; NEVER read through the collection - the
 		// plain-file parse above is the value of record (redirector-proof).
 		auto* collection = utils::INISettingCollection::GetSingleton();
 		collection->AddSettings(
 			utils::MakeSetting("uLogLevel:Debug", static_cast<unsigned int>(debug::logLevel)),
-			utils::MakeSetting("bEnabled:General", general::enabled),
-			utils::MakeSetting("fPerLevel:General", general::perLevel),
-			utils::MakeSetting("fMaxBonus:General", general::maxBonus));
+			utils::MakeSetting("fStartingWeight:General", general::startingWeight),
+			utils::MakeSetting("fPerLevel:General", general::perLevel));
 
 		LoadFileValues();
 	}
@@ -167,9 +164,8 @@ namespace settings
 
 		bool ok = true;
 		ok &= WriteKey(lines, "Debug", "uLogLevel", std::to_string(debug::logLevel));
-		ok &= WriteKey(lines, "General", "bEnabled", general::enabled ? "1" : "0");
+		ok &= WriteKey(lines, "General", "fStartingWeight", FormatFloat(general::startingWeight));
 		ok &= WriteKey(lines, "General", "fPerLevel", FormatFloat(general::perLevel));
-		ok &= WriteKey(lines, "General", "fMaxBonus", FormatFloat(general::maxBonus));
 
 		std::ofstream out(iniPath, std::ios::trunc);
 		if (!out) { logger::error("Save: could not open {} for writing", iniPath); return false; }
@@ -181,9 +177,8 @@ namespace settings
 	void RestoreDefaults()
 	{
 		debug::logLevel = defaults.logLevel;
-		general::enabled = defaults.enabled;
+		general::startingWeight = defaults.startingWeight;
 		general::perLevel = defaults.perLevel;
-		general::maxBonus = defaults.maxBonus;
 		ApplyLogLevel();
 	}
 

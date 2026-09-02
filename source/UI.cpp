@@ -110,17 +110,15 @@ namespace UI
 
 			ImGuiMCP::SeparatorText("Carry weight");
 
-			ImGuiMCP::Toggle("Enabled", &general::enabled);
-			HelpMarker("Every character level above 1 adds carry weight. Switching this off removes the whole bonus cleanly.");
+			NudgeableSlider("Starting weight", &general::startingWeight, 0.0F, 1000.0F, "%.0f", 5.0F);
+			HelpMarker("Carry weight at level 1. Vanilla Skyrim starts at 300. Change it and your carry weight is recalculated for your current level at once.");
 
 			NudgeableSlider("Per level", &general::perLevel, 0.0F, 25.0F, "%.1f", 0.5F);
-			HelpMarker("Carry weight gained per level. The bonus is always (level - 1) x this value, so changing it re-computes the whole bonus - including levels you gained before installing.");
-
-			NudgeableSlider("Cap", &general::maxBonus, 0.0F, 500.0F, "%.0f", 5.0F);
-			HelpMarker("The bonus never exceeds this. 0 = no cap.");
+			HelpMarker("Carry weight added for every level above 1. Change it and your carry weight is recalculated for your current level at once.");
 
 			const auto s = Carryweight::GetState();
-			ImGuiMCP::Text("Level %u - current bonus: +%.0f (carry weight %.0f)", s.playerLevel, s.applied, s.carryWeightAV);
+			ImGuiMCP::Text("Level %u: %.0f + %.1f x %u = %.0f carry weight", s.playerLevel, general::startingWeight, general::perLevel,
+						   s.playerLevel > 0 ? s.playerLevel - 1 : 0, s.target);
 		}
 
 		void RenderDebugSection()

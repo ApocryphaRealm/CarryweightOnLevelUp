@@ -15,12 +15,12 @@ namespace settings
 
 	namespace general
 	{
-		inline bool enabled = true;      // bEnabled:General
-		// Carry weight gained per character level above 1. The bonus is a pure formula of the
-		// CURRENT level - (level - 1) * fPerLevel, capped - so it is inherently retroactive on
-		// an existing save and always self-consistent.
-		inline float perLevel = 5.0F;    // fPerLevel:General
-		inline float maxBonus = 0.0F;    // fMaxBonus:General - 0 = no cap
+		// Carry weight is a plain formula of the CURRENT level (design decision 2026-09-01: the
+		// page just sets the starting weight and the weight per level, and changing either
+		// recalculates what the player should have right now):
+		//     carry weight = fStartingWeight + fPerLevel x (level - 1)
+		inline float startingWeight = 300.0F;  // fStartingWeight:General - carry weight at level 1 (vanilla 300)
+		inline float perLevel = 5.0F;          // fPerLevel:General - added per level above 1
 	}
 
 	void Init(const std::string& a_iniFileName);

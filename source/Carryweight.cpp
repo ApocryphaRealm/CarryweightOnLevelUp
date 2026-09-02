@@ -50,23 +50,24 @@ namespace Carryweight
 			s.playerLevel = player->GetLevel();
 			s.applied = g_applied;
 			s.carryWeightAV = avOwner->GetActorValue(RE::ActorValue::kCarryWeight);
+			s.permanentAV = avOwner->GetPermanentActorValue(RE::ActorValue::kCarryWeight);
 
-			float target = 0.0F;
-			if (settings::general::enabled)
-			{
-				target = static_cast<float>(std::max<int>(0, s.playerLevel - 1)) * settings::general::perLevel;
-				if (settings::general::maxBonus > 0.0F) { target = std::min(target, settings::general::maxBonus); }
-			}
+			// carry weight = starting + perLevel x (level - 1), recalculated for the CURRENT level
+			// every tick, so a setting change applies at once.
+			const float target = settings::general::startingWeight
+				+ static_cast<float>(std::max<int>(0, s.playerLevel - 1)) * settings::general::perLevel;
 			s.target = target;
 
-			if (std::fabs(target - g_applied) > 0.01F)
+			const float delta = target - s.permanentAV;
+			if (std::fabs(delta) > 0.01F)
 			{
-				avOwner->ModActorValue(RE::ActorValue::kCarryWeight, target - g_applied);
-				logger::info("carry weight bonus {} -> {} (level {}, perLevel {:.1f})",
-							 g_applied, target, s.playerLevel, settings::general::perLevel);
-				g_applied = target;
-				s.applied = target;
+				avOwner->ModActorValue(RE::ActorValue::kCarryWeight, delta);
+				g_applied += delta;
+				logger::info("carry weight {:.1f} -> {:.1f} (level {}, starting {:.1f}, perLevel {:.1f}; net applied {:.1f})",
+							 s.permanentAV, target, s.playerLevel, settings::general::startingWeight, settings::general::perLevel, g_applied);
+				s.applied = g_applied;
 				s.carryWeightAV = avOwner->GetActorValue(RE::ActorValue::kCarryWeight);
+				s.permanentAV = avOwner->GetPermanentActorValue(RE::ActorValue::kCarryWeight);
 			}
 
 			std::scoped_lock l(g_stateLock);

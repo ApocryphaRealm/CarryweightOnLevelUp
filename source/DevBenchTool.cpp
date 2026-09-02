@@ -7,6 +7,7 @@
 #include "Settings.h"
 #include "utils/Logger.h"
 
+#include <cstdlib>
 #include <format>
 #include <string>
 #include <string_view>
@@ -41,15 +42,27 @@ namespace DevBenchTool
 				a_write(a_sink, std::format(R"({{"ok":{},"op":"reload"}})", ok ? "true" : "false").c_str());
 				return;
 			}
+			// op=starting:<n> / op=perlevel:<n> - test drive of a live setting change (the tick recalculates).
+			for (const auto& [key, target] : { std::pair{ "starting:", &settings::general::startingWeight }, std::pair{ "perlevel:", &settings::general::perLevel } })
+			{
+				const auto at = args.find(key);
+				if (at != std::string_view::npos)
+				{
+					const float v = std::strtof(std::string(args.substr(at + std::string_view(key).size(), 16)).c_str(), nullptr);
+					*target = v;
+					a_write(a_sink, std::format(R"({{"ok":true,"op":"{}","value":{:.1f}}})", key, v).c_str());
+					return;
+				}
+			}
 
 			const auto s = Carryweight::GetState();
 			const std::string json = std::format(
 				"{{\"ok\":true,"
-				"\"settings\":{{\"enabled\":{},\"perLevel\":{:.1f},\"maxBonus\":{:.1f},\"logLevel\":{},\"iniPath\":\"{}\"}},"
-				"\"runtime\":{{\"ticking\":{},\"playerLevel\":{},\"applied\":{:.1f},\"target\":{:.1f},\"carryWeightAV\":{:.1f}}}}}",
-				settings::general::enabled, settings::general::perLevel, settings::general::maxBonus,
+				"\"settings\":{{\"startingWeight\":{:.1f},\"perLevel\":{:.1f},\"logLevel\":{},\"iniPath\":\"{}\"}},"
+				"\"runtime\":{{\"ticking\":{},\"playerLevel\":{},\"applied\":{:.1f},\"target\":{:.1f},\"carryWeightAV\":{:.1f},\"permanentAV\":{:.1f}}}}}",
+				settings::general::startingWeight, settings::general::perLevel,
 				settings::debug::logLevel, EscapeJson(settings::GetIniPath()),
-				s.ticking, s.playerLevel, s.applied, s.target, s.carryWeightAV);
+				s.ticking, s.playerLevel, s.applied, s.target, s.carryWeightAV, s.permanentAV);
 			a_write(a_sink, json.c_str());
 		}
 	}

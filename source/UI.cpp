@@ -110,11 +110,21 @@ namespace UI
 
 			ImGuiMCP::SeparatorText("Carry weight");
 
-			NudgeableSlider("Starting weight", &general::startingWeight, 0.0F, 1000.0F, "%.0f", 5.0F);
-			HelpMarker("Carry weight at level 1. Vanilla Skyrim starts at 300. Change it and your carry weight is recalculated for your current level at once.");
+			bool changed = false;
+			changed |= NudgeableSlider("Starting weight", &general::startingWeight, 0.0F, 1000.0F, "%.0f", 5.0F);
+			HelpMarker("Carry weight at level 1. Vanilla Skyrim starts at 300.");
 
-			NudgeableSlider("Per level", &general::perLevel, 0.0F, 25.0F, "%.1f", 0.5F);
-			HelpMarker("Carry weight added for every level above 1. Change it and your carry weight is recalculated for your current level at once.");
+			changed |= NudgeableSlider("Per level", &general::perLevel, 0.0F, 25.0F, "%.1f", 0.5F);
+			HelpMarker("Carry weight added for every level above 1.");
+
+			if (changed) { Carryweight::RequestApply(); }
+
+			if (ImGuiMCP::Button("Apply now"))
+			{
+				Carryweight::RequestApply();
+				statusMessage = "Applied to your current level.";
+			}
+			HelpMarker("Reissues the formula for your current level with the values above. It also runs by itself when a save loads, when you level up, and when you move a slider - nothing runs in the background.");
 
 			const auto s = Carryweight::GetState();
 			ImGuiMCP::Text("Level %u: %.0f + %.1f x %u = %.0f carry weight", s.playerLevel, general::startingWeight, general::perLevel,

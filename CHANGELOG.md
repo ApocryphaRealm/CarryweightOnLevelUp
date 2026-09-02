@@ -7,6 +7,13 @@ Rule 61: this mod's own history, kept beside the code it describes.
 > number; at `.9` the MINOR rolls. The next number is LAST WORKING + 1; failed/scratch/
 > untested numbers are reused. Numbers come from version-ledger.ps1 + set-version.ps1.
 
+## 1.0.2 - 2026-09-01 - working
+
+### Changed
+- No background tick any more (design decision 2026-09-01). The formula is applied on demand:
+  when a save loads, when you level up (SKSE level-up event), when a slider changes, and
+  from the new "Apply now" button on the settings page. Nothing runs between those moments.
+
 ## 1.0.1 - 2026-09-01 - working
 
 ### Changed

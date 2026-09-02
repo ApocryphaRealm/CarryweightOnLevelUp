@@ -1,6 +1,7 @@
-// Carryweight on Level Up - own code, MIT (2026-09-01). The AutoDraw pattern: state-based
-// low-rate tick, plain-file INI, AMF-aware settings page, DevBench driving tool, co-save
-// serialization so the applied bonus is idempotent across saves and loads.
+// Carryweight on Level Up - own code, MIT (2026-09-01). On-demand core (apply on load,
+// level-up, setting change, or the page's Apply now - no background tick), plain-file INI,
+// AMF-aware settings page, DevBench driving tool, co-save serialization so the applied amount
+// is idempotent across saves and loads.
 #include "PCH.h"
 
 #include "Carryweight.h"
@@ -23,6 +24,10 @@ namespace
 			UI::Register();
 			Carryweight::Install();
 			DevBenchTool::Init(true);
+			break;
+		case SKSE::MessagingInterface::kPostLoadGame:
+		case SKSE::MessagingInterface::kNewGame:
+			Carryweight::RequestApply();
 			break;
 		default:
 			break;

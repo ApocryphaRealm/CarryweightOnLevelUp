@@ -7,10 +7,8 @@
 
 #include <algorithm>
 #include <atomic>
-#include <chrono>
 #include <cmath>
 #include <mutex>
-#include <thread>
 
 namespace Carryweight
 {
@@ -20,87 +18,86 @@ namespace Carryweight
 		constexpr std::uint32_t kRecordVersion = 1;
 
 		std::atomic<bool> g_installed{ false };
-		std::atomic<bool> g_tickPending{ false };
 
 		std::mutex g_stateLock;
 		State g_state;
 
-		// The amount this mod has applied to the player's carry weight, mirrored in the
-		// co-save. Only the main-thread tick writes it.
+		// The net amount this mod has applied to the player's carry weight, mirrored in the
+		// co-save. Only main-thread Apply() writes it.
 		float g_applied = 0.0F;
 
-		void Tick()
+		// SKSE raises this when the player's level goes up - the one moment the formula's input
+		// changes on its own.
+		class LevelSink : public RE::BSTEventSink<RE::LevelIncrease::Event>
 		{
-			g_tickPending.store(false, std::memory_order_release);
-
-			State s;
-			s.ticking = true;
-
-			auto* ui = RE::UI::GetSingleton();
-			auto* player = RE::PlayerCharacter::GetSingleton();
-			if (!ui || ui->GameIsPaused() || !player || !player->Is3DLoaded())
+		public:
+			static LevelSink* GetSingleton()
 			{
-				std::scoped_lock l(g_stateLock);
-				s.applied = g_applied;
-				g_state = s;
-				return;
+				static LevelSink singleton;
+				return &singleton;
 			}
+			RE::BSEventNotifyControl ProcessEvent(const RE::LevelIncrease::Event* a_event, RE::BSTEventSource<RE::LevelIncrease::Event>*) override
+			{
+				if (a_event) { logger::debug("level-up event (level {}) - applying", a_event->newLevel); RequestApply(); }
+				return RE::BSEventNotifyControl::kContinue;
+			}
+		};
+	}
 
-			auto* avOwner = player->AsActorValueOwner();
-			s.playerLevel = player->GetLevel();
-			s.applied = g_applied;
+	void Apply()
+	{
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (!player || !player->Is3DLoaded()) { logger::debug("Apply: no loaded player yet"); return; }
+
+		State s;
+		auto* avOwner = player->AsActorValueOwner();
+		s.playerLevel = player->GetLevel();
+		s.carryWeightAV = avOwner->GetActorValue(RE::ActorValue::kCarryWeight);
+		s.permanentAV = avOwner->GetPermanentActorValue(RE::ActorValue::kCarryWeight);
+
+		// carry weight = starting + perLevel x (level - 1), for the CURRENT level
+		const float target = settings::general::startingWeight
+			+ static_cast<float>(std::max<int>(0, s.playerLevel - 1)) * settings::general::perLevel;
+		s.target = target;
+
+		const float delta = target - s.permanentAV;
+		if (std::fabs(delta) > 0.01F)
+		{
+			avOwner->ModActorValue(RE::ActorValue::kCarryWeight, delta);
+			g_applied += delta;
+			logger::info("carry weight {:.1f} -> {:.1f} (level {}, starting {:.1f}, perLevel {:.1f}; net applied {:.1f})",
+						 s.permanentAV, target, s.playerLevel, settings::general::startingWeight, settings::general::perLevel, g_applied);
 			s.carryWeightAV = avOwner->GetActorValue(RE::ActorValue::kCarryWeight);
 			s.permanentAV = avOwner->GetPermanentActorValue(RE::ActorValue::kCarryWeight);
-
-			// carry weight = starting + perLevel x (level - 1), recalculated for the CURRENT level
-			// every tick, so a setting change applies at once.
-			const float target = settings::general::startingWeight
-				+ static_cast<float>(std::max<int>(0, s.playerLevel - 1)) * settings::general::perLevel;
-			s.target = target;
-
-			const float delta = target - s.permanentAV;
-			if (std::fabs(delta) > 0.01F)
-			{
-				avOwner->ModActorValue(RE::ActorValue::kCarryWeight, delta);
-				g_applied += delta;
-				logger::info("carry weight {:.1f} -> {:.1f} (level {}, starting {:.1f}, perLevel {:.1f}; net applied {:.1f})",
-							 s.permanentAV, target, s.playerLevel, settings::general::startingWeight, settings::general::perLevel, g_applied);
-				s.applied = g_applied;
-				s.carryWeightAV = avOwner->GetActorValue(RE::ActorValue::kCarryWeight);
-				s.permanentAV = avOwner->GetPermanentActorValue(RE::ActorValue::kCarryWeight);
-			}
-
-			std::scoped_lock l(g_stateLock);
-			g_state = s;
 		}
+		else
+		{
+			logger::debug("Apply: carry weight already {:.1f} at level {}", target, s.playerLevel);
+		}
+		s.applied = g_applied;
+
+		std::scoped_lock l(g_stateLock);
+		s.applications = g_state.applications + 1;
+		g_state = s;
+	}
+
+	void RequestApply()
+	{
+		if (auto* tasks = SKSE::GetTaskInterface()) { tasks->AddTask(Apply); }
 	}
 
 	void Install()
 	{
 		if (g_installed.exchange(true)) { return; }
-		if (!SKSE::GetTaskInterface())
+		if (auto* source = RE::LevelIncrease::GetEventSource())
 		{
-			g_installed = false;
-			logger::error("SKSE task interface unavailable; the mod cannot run");
-			return;
+			source->AddEventSink(LevelSink::GetSingleton());
+			logger::info("level-up event sink registered (apply on load, level-up, setting change, or Apply now - no background tick)");
 		}
-
-		// Poster thread hands one tick at a time to the main thread (~2 Hz - level-ups are
-		// rare; the AutoDraw pattern, incl. the lesson that a task must NEVER re-queue
-		// itself: SKSE drains its queue within one frame).
-		std::thread([]() {
-			while (g_installed.load(std::memory_order_relaxed))
-			{
-				if (!g_tickPending.exchange(true, std::memory_order_acq_rel))
-				{
-					if (auto* tasks = SKSE::GetTaskInterface()) { tasks->AddTask(Tick); }
-					else { g_tickPending.store(false, std::memory_order_release); }
-				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(500));
-			}
-		}).detach();
-
-		logger::info("tick poster installed (state-based, ~2 Hz)");
+		else
+		{
+			logger::warn("SKSE LevelIncrease event source unavailable - carry weight applies on load, setting change and Apply now only");
+		}
 	}
 
 	void OnSave(SKSE::SerializationInterface* a_intfc)
@@ -124,6 +121,7 @@ namespace Carryweight
 			}
 		}
 		logger::debug("co-save loaded: applied bonus {}", g_applied);
+		RequestApply();  // a save just loaded - apply the formula for its level once
 	}
 
 	void OnRevert(SKSE::SerializationInterface*)

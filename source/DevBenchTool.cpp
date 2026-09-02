@@ -42,7 +42,13 @@ namespace DevBenchTool
 				a_write(a_sink, std::format(R"({{"ok":{},"op":"reload"}})", ok ? "true" : "false").c_str());
 				return;
 			}
-			// op=starting:<n> / op=perlevel:<n> - test drive of a live setting change (the tick recalculates).
+			if (args.find("\"apply\"") != std::string_view::npos)
+			{
+				Carryweight::RequestApply();
+				a_write(a_sink, R"({"ok":true,"op":"apply"})");
+				return;
+			}
+			// op=starting:<n> / op=perlevel:<n> - a setting change; follow with op=apply (the page's sliders do that themselves).
 			for (const auto& [key, target] : { std::pair{ "starting:", &settings::general::startingWeight }, std::pair{ "perlevel:", &settings::general::perLevel } })
 			{
 				const auto at = args.find(key);
@@ -59,10 +65,10 @@ namespace DevBenchTool
 			const std::string json = std::format(
 				"{{\"ok\":true,"
 				"\"settings\":{{\"startingWeight\":{:.1f},\"perLevel\":{:.1f},\"logLevel\":{},\"iniPath\":\"{}\"}},"
-				"\"runtime\":{{\"ticking\":{},\"playerLevel\":{},\"applied\":{:.1f},\"target\":{:.1f},\"carryWeightAV\":{:.1f},\"permanentAV\":{:.1f}}}}}",
+				"\"runtime\":{{\"applications\":{},\"playerLevel\":{},\"applied\":{:.1f},\"target\":{:.1f},\"carryWeightAV\":{:.1f},\"permanentAV\":{:.1f}}}}}",
 				settings::general::startingWeight, settings::general::perLevel,
 				settings::debug::logLevel, EscapeJson(settings::GetIniPath()),
-				s.ticking, s.playerLevel, s.applied, s.target, s.carryWeightAV, s.permanentAV);
+				s.applications, s.playerLevel, s.applied, s.target, s.carryWeightAV, s.permanentAV);
 			a_write(a_sink, json.c_str());
 		}
 	}

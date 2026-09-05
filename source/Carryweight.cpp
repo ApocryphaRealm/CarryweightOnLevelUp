@@ -63,7 +63,12 @@ namespace Carryweight
 		const float delta = target - s.permanentAV;
 		if (std::fabs(delta) > 0.01F)
 		{
+			
+#if RUNTIME_LINE == 17
+			avOwner->ModBaseActorValue(RE::ActorValue::kCarryWeight, delta);
+#else
 			avOwner->ModActorValue(RE::ActorValue::kCarryWeight, delta);
+#endif
 			g_applied += delta;
 			logger::info("carry weight {:.1f} -> {:.1f} (level {}, starting {:.1f}, perLevel {:.1f}; net applied {:.1f})",
 						 s.permanentAV, target, s.playerLevel, settings::general::startingWeight, settings::general::perLevel, g_applied);

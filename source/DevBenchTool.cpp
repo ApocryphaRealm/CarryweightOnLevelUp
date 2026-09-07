@@ -6,6 +6,7 @@
 #include "DevBench/DevBenchAPI.h"
 #include "Settings.h"
 #include "utils/Logger.h"
+#include "utils/Strings.h"
 
 #include <cstdlib>
 #include <format>
@@ -40,6 +41,11 @@ namespace DevBenchTool
 			{
 				const bool ok = settings::Reload();
 				a_write(a_sink, std::format(R"({{"ok":{},"op":"reload"}})", ok ? "true" : "false").c_str());
+				return;
+			}
+			if (args.find("\"strings\"") != std::string_view::npos)
+			{
+				a_write(a_sink, std::format(R"({{"ok":true,"op":"strings","strings":{}}})", strings::StatusJson()).c_str());
 				return;
 			}
 			if (args.find("\"apply\"") != std::string_view::npos)
@@ -95,7 +101,8 @@ namespace DevBenchTool
 		constexpr const char* descriptor =
 			"{"
 			"\"description\":\"Carryweight on Level Up live state: settings, player level, the "
-			"applied/target bonus and the carry-weight actor value. op=reload re-reads the INI.\","
+			"applied/target bonus and the carry-weight actor value. op=reload re-reads the INI. "
+			"op=strings reports the active language, source and loaded translation count.\","
 			"\"inputSchema\":{\"type\":\"object\",\"properties\":{\"op\":{\"type\":\"string\"}}},"
 			"\"readOnly\":false"
 			"}";

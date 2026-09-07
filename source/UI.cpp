@@ -8,11 +8,13 @@
 #include "Settings.h"
 
 #include "utils/Logger.h"
+#include "utils/Strings.h"
 #include "utils/Toggle.h"
 
 #include <algorithm>
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace UI
 {
@@ -22,6 +24,8 @@ namespace UI
 		std::string selectedSlider;
 
 		constexpr const char* kLogLevelNames[] = { "Trace", "Debug", "Info", "Warning", "Error", "Critical", "Off" };
+		constexpr const char* kLogLevelKeys[] = { "COLU_LogLevel_Trace", "COLU_LogLevel_Debug", "COLU_LogLevel_Info",
+													"COLU_LogLevel_Warning", "COLU_LogLevel_Error", "COLU_LogLevel_Critical", "COLU_LogLevel_Off" };
 		constexpr int kLogLevelCount = 7;
 
 		void OnMainThread(std::function<void()> a_task)
@@ -76,7 +80,7 @@ namespace UI
 		void HelpMarker(const char* a_description)
 		{
 			ImGuiMCP::SameLine();
-			ImGuiMCP::TextDisabled("(?)");
+			ImGuiMCP::TextDisabled("%s", strings::TR("COLU_HelpMark", "(?)"));
 			if (ImGuiMCP::IsItemHovered())
 			{
 				ImGuiMCP::SetTooltip("%s", a_description);
@@ -99,7 +103,7 @@ namespace UI
 					changed = true;
 				}
 				ImGuiMCP::SameLine();
-				ImGuiMCP::TextDisabled("<-->");
+				ImGuiMCP::TextDisabled("%s", strings::TR("COLU_NudgeArrows", "<-->"));
 			}
 			return changed;
 		}
@@ -108,26 +112,26 @@ namespace UI
 		{
 			using namespace settings;
 
-			ImGuiMCP::SeparatorText("Carry weight");
+			ImGuiMCP::SeparatorText(strings::TR("COLU_CarryWeight", "Carry weight"));
 
 			bool changed = false;
-			changed |= NudgeableSlider("Starting weight", &general::startingWeight, 0.0F, 1000.0F, "%.0f", 5.0F);
-			HelpMarker("Carry weight at level 1. Vanilla Skyrim starts at 300.");
+			changed |= NudgeableSlider(strings::TR("COLU_StartingWeight", "Starting weight"), &general::startingWeight, 0.0F, 1000.0F, "%.0f", 5.0F);
+			HelpMarker(strings::TR("COLU_HelpStartingWeight", "Carry weight at level 1. Vanilla Skyrim starts at 300."));
 
-			changed |= NudgeableSlider("Per level", &general::perLevel, 0.0F, 25.0F, "%.1f", 0.5F);
-			HelpMarker("Carry weight added for every level above 1.");
+			changed |= NudgeableSlider(strings::TR("COLU_PerLevel", "Per level"), &general::perLevel, 0.0F, 25.0F, "%.1f", 0.5F);
+			HelpMarker(strings::TR("COLU_HelpPerLevel", "Carry weight added for every level above 1."));
 
 			if (changed) { Carryweight::RequestApply(); }
 
-			if (ImGuiMCP::Button("Apply now"))
+			if (ImGuiMCP::Button(strings::TR("COLU_ApplyNowBtn", "Apply now")))
 			{
 				Carryweight::RequestApply();
-				statusMessage = "Applied to your current level.";
+				statusMessage = strings::TR("COLU_StatusApplied", "Applied to your current level.");
 			}
-			HelpMarker("Reissues the formula for your current level with the values above. It also runs by itself when a save loads, when you level up, and when you move a slider - nothing runs in the background.");
+			HelpMarker(strings::TR("COLU_HelpApplyNow", "Reissues the formula for your current level with the values above. It also runs by itself when a save loads, when you level up, and when you move a slider - nothing runs in the background."));
 
 			const auto s = Carryweight::GetState();
-			ImGuiMCP::Text("Level %u: %.0f + %.1f x %u = %.0f carry weight", s.playerLevel, general::startingWeight, general::perLevel,
+			ImGuiMCP::Text(strings::TR("COLU_LevelFormula", "Level %u: %.0f + %.1f x %u = %.0f carry weight"), s.playerLevel, general::startingWeight, general::perLevel,
 						   s.playerLevel > 0 ? s.playerLevel - 1 : 0, s.target);
 		}
 
@@ -135,54 +139,66 @@ namespace UI
 		{
 			using namespace settings;
 
-			ImGuiMCP::SeparatorText("Debug");
+			ImGuiMCP::SeparatorText(strings::TR("COLU_Debug", "Debug"));
 
 			int level = static_cast<int>(debug::logLevel);
 			level = std::clamp(level, 0, kLogLevelCount - 1);
-			if (ImGuiMCP::Combo("Log level", &level, kLogLevelNames, kLogLevelCount))
+			// Rebuilt from TR'd entries every frame (plan 2.2); labelStore owns the translated
+			// bytes for this call so the const char* pointers handed to Combo stay valid.
+			std::vector<std::string> logLevelLabelStore;
+			logLevelLabelStore.reserve(kLogLevelCount);
+			for (int i = 0; i < kLogLevelCount; ++i)
+			{
+				logLevelLabelStore.push_back(strings::TR(kLogLevelKeys[i], kLogLevelNames[i]));
+			}
+			std::vector<const char*> logLevelLabels;
+			logLevelLabels.reserve(logLevelLabelStore.size());
+			for (const auto& s : logLevelLabelStore) { logLevelLabels.push_back(s.c_str()); }
+			if (ImGuiMCP::Combo(strings::TR("COLU_LogLevel", "Log level"), &level, logLevelLabels.data(), kLogLevelCount))
 			{
 				debug::logLevel = static_cast<std::uint32_t>(level);
 				ApplyLogLevel();
 			}
-			HelpMarker("Applies immediately. The log is at Documents\\My Games\\Skyrim Special Edition\\SKSE\\CarryweightOnLevelUp.log.");
+			HelpMarker(strings::TR("COLU_HelpLogLevel", "Applies immediately. The log is at Documents\\My Games\\Skyrim Special Edition\\SKSE\\CarryweightOnLevelUp.log."));
 		}
 
 		void RenderButtons()
 		{
 			ImGuiMCP::SeparatorText("");
 
-			if (ImGuiMCP::Button("Save"))
+			if (ImGuiMCP::Button(strings::TR("COLU_SaveBtn", "Save")))
 			{
-				statusMessage = "Saving...";
+				statusMessage = strings::TR("COLU_StatusSaving", "Saving...");
 				OnMainThread([]() {
-					statusMessage = settings::Save() ? "Settings saved." : "Could not write the INI. See the log for why.";
+					statusMessage = settings::Save() ? strings::TR("COLU_StatusSaved", "Settings saved.")
+													   : strings::TR("COLU_StatusSaveFail", "Could not write the INI. See the log for why.");
 				});
 			}
-			HelpMarker("Writes every setting on this page to the plugin's INI so it survives a restart.");
+			HelpMarker(strings::TR("COLU_HelpSave", "Writes every setting on this page to the plugin's INI so it survives a restart."));
 
 			ImGuiMCP::SameLine();
 
-			if (ImGuiMCP::Button("Reload from INI"))
+			if (ImGuiMCP::Button(strings::TR("COLU_ReloadBtn", "Reload from INI")))
 			{
-				statusMessage = "Reloading...";
+				statusMessage = strings::TR("COLU_StatusReloading", "Reloading...");
 				OnMainThread([]() {
-					statusMessage = settings::Reload() ? "Settings reloaded from the INI."
-													   : "Could not read the INI. See the log for why.";
+					statusMessage = settings::Reload() ? strings::TR("COLU_StatusReloaded", "Settings reloaded from the INI.")
+													   : strings::TR("COLU_StatusReloadFail", "Could not read the INI. See the log for why.");
 				});
 			}
-			HelpMarker("Throws away any change made here since the last save and re-reads the INI from disk.");
+			HelpMarker(strings::TR("COLU_HelpReload", "Throws away any change made here since the last save and re-reads the INI from disk."));
 
 			ImGuiMCP::SameLine();
 
-			if (ImGuiMCP::Button("Restore defaults"))
+			if (ImGuiMCP::Button(strings::TR("COLU_RestoreBtn", "Restore defaults")))
 			{
 				OnMainThread([]() {
 					settings::RestoreDefaults();
 					logger::debug("Restored default settings");
 				});
-				statusMessage = "Defaults restored. Press Save to keep them.";
+				statusMessage = strings::TR("COLU_StatusRestored", "Defaults restored. Press Save to keep them.");
 			}
-			HelpMarker("Puts every setting back to its fresh-install value. Nothing is written until you press Save.");
+			HelpMarker(strings::TR("COLU_HelpRestore", "Puts every setting back to its fresh-install value. Nothing is written until you press Save."));
 
 			if (!statusMessage.empty())
 			{
@@ -216,7 +232,9 @@ namespace UI
 
 	void __stdcall SettingsPanel::Render()
 	{
-		ImGuiMCP::TextWrapped("Changes apply as soon as you make them. Press Save to keep them for the next time you play.");
+		strings::Tick();
+
+		ImGuiMCP::TextWrapped("%s", strings::TR("COLU_Intro", "Changes apply as soon as you make them. Press Save to keep them for the next time you play."));
 		ImGuiMCP::Spacing();
 
 		ImGuiMCP::PushItemWidth(260.0F);

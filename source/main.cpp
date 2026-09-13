@@ -1,4 +1,4 @@
-// Carryweight on Level Up - own code, MIT (2026-09-01). On-demand core (apply on load,
+// Carryweight on Level Up - own code, GPL-3.0-or-later (2026-09-01). On-demand core (apply on load,
 // level-up, setting change, or the page's Apply now - no background tick), plain-file INI,
 // AMF-aware settings page, DevBench driving tool, co-save serialization so the applied amount
 // is idempotent across saves and loads.

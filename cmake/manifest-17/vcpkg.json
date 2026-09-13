@@ -1,9 +1,9 @@
-﻿{
+{
   "name": "carryweightonlevelup-17",
   "version-string": "1.0.3",
   "description": "Carryweight on Level Up - every level permanently adds carry weight, amount and cap configurable live in game. [Skyrim 1.7.x build line: CommonLibSSE-NG 7.2.0, cmake/ports-17]",
   "homepage": "https://github.com/ApocryphaRealm/CarryweightOnLevelUp",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "dependencies": [
     "commonlibsse-ng",
     "spdlog"

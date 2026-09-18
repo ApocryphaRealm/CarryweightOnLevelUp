@@ -2,7 +2,7 @@
 
 project(
 	CarryweightOnLevelUp
-	VERSION 1.0.5
+	VERSION 1.0.6
 	LANGUAGES CXX
 )
 

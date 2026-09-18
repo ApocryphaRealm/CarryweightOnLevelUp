@@ -1,6 +1,6 @@
 ﻿{
     "name": "carryweightonlevelup",
-    "version-string": "1.0.5",
+    "version-string": "1.0.6",
     "description": "Carryweight on Level Up - every level permanently adds carry weight, amount and cap configurable live in game.",
     "homepage": "https://github.com/ApocryphaRealm/CarryweightOnLevelUp",
     "license": "GPL-3.0-or-later",

@@ -16,6 +16,10 @@ Rule 61: this mod's own history, kept beside the code it describes.
   against base + permanent modifiers, and constant enchantments and abilities are permanent modifiers, so every load
   took them back off the base (wolf1438's report on the Discord hub, 2026-10-08, with the cause found: getavinfo showed
   base 250 + permanent +50 = 300). A save already affected corrects itself on the next load.
+- A new character gets the formula as soon as it is placed in the world. SKSE's New Game message arrives before
+  character creation, the player was not placed yet, and nothing asked again until a save loaded, a level-up or Apply
+  now - so a custom Starting weight did not reach a new character. The mod now asks again every 2 seconds until the
+  player is placed (at most 20 minutes), then stops. Found in the in-game test of this release.
 
 ## 1.0.6 - 2026-09-18 - untested
 

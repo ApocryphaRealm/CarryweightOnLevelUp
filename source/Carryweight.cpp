@@ -7,8 +7,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <mutex>
+#include <thread>
 
 namespace Carryweight
 {
@@ -25,6 +27,24 @@ namespace Carryweight
 		// The net amount this mod has applied to the player's carry weight, mirrored in the
 		// co-save. Only main-thread Apply() writes it.
 		float g_applied = 0.0F;
+
+		// One waiting thread at most: set while Apply() is waiting for the player to be placed (new game).
+		std::atomic<bool> g_waitingForPlayer{ false };
+
+		void RetryUntilPlaced()
+		{
+			if (g_waitingForPlayer.exchange(true)) { return; }   // already waiting
+			logger::debug("Apply: no placed player yet - asking again every 2 s until there is one (at most 20 min)");
+			std::thread([] {
+				for (int i = 0; i < 600 && g_waitingForPlayer.load(); ++i)
+				{
+					std::this_thread::sleep_for(std::chrono::seconds(2));
+					if (!g_waitingForPlayer.load()) { return; }
+					RequestApply();   // Apply clears g_waitingForPlayer once the player is placed
+				}
+				if (g_waitingForPlayer.exchange(false)) { logger::warn("Apply: no placed player after 20 min - waiting for a load, level-up or Apply now"); }
+			}).detach();
+		}
 
 		// SKSE raises this when the player's level goes up - the one moment the formula's input
 		// changes on its own.
@@ -48,8 +68,16 @@ namespace Carryweight
 	{
 		auto* player = RE::PlayerCharacter::GetSingleton();
 		// The player must be placed in a cell before its actor values mean anything (gate rule
-		// or-player-actor-values-need-a-placed-player); a load re-queues Apply once it is.
-		if (!player || !player->Is3DLoaded() || !player->parentCell) { logger::debug("Apply: no placed player yet"); return; }
+		// or-player-actor-values-need-a-placed-player). On a NEW GAME SKSE's kNewGame arrives before character
+		// creation has placed anyone, and nothing else asks again until a save loads or the player levels up -
+		// so a custom Starting weight never reached a new character (Main Agent's 1.0.7 test, 2026-10-08).
+		// Ask again every 2 s until the player is placed, then stop: a bounded wait, not a background tick.
+		if (!player || !player->Is3DLoaded() || !player->parentCell)
+		{
+			RetryUntilPlaced();
+			return;
+		}
+		g_waitingForPlayer.store(false);
 
 		State s;
 		auto* avOwner = player->AsActorValueOwner();

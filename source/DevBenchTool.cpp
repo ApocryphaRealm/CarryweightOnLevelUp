@@ -71,10 +71,10 @@ namespace DevBenchTool
 			const std::string json = std::format(
 				"{{\"ok\":true,"
 				"\"settings\":{{\"startingWeight\":{:.1f},\"perLevel\":{:.1f},\"logLevel\":{},\"iniPath\":\"{}\"}},"
-				"\"runtime\":{{\"applications\":{},\"playerLevel\":{},\"applied\":{:.1f},\"target\":{:.1f},\"carryWeightAV\":{:.1f},\"permanentAV\":{:.1f}}}}}",
+				"\"runtime\":{{\"applications\":{},\"playerLevel\":{},\"applied\":{:.1f},\"target\":{:.1f},\"carryWeightAV\":{:.1f},\"permanentAV\":{:.1f},\"baseAV\":{:.1f}}}}}",
 				settings::general::startingWeight, settings::general::perLevel,
 				settings::debug::logLevel, EscapeJson(settings::GetIniPath()),
-				s.applications, s.playerLevel, s.applied, s.target, s.carryWeightAV, s.permanentAV);
+				s.applications, s.playerLevel, s.applied, s.target, s.carryWeightAV, s.permanentAV, s.baseAV);
 			a_write(a_sink, json.c_str());
 		}
 	}

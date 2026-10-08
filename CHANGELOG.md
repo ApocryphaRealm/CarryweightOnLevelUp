@@ -7,6 +7,16 @@ Rule 61: this mod's own history, kept beside the code it describes.
 > number; at `.9` the MINOR rolls. The next number is LAST WORKING + 1; failed/scratch/
 > untested numbers are reused. Numbers come from version-ledger.ps1 + set-version.ps1.
 
+## 1.0.7 - 2026-10-08 - untested
+
+### Fixed
+- Carry weight from enchantments and abilities is no longer cancelled when a save loads. A backpack with Fortify Carry
+  Weight +50 now reads 350 after loading (300 + 50) and 300 once taken off; the Steed Stone, Extra Pockets and carry
+  weight rings stack on top the same way. The formula now sets the BASE carry weight; up to 1.0.6 it was measured
+  against base + permanent modifiers, and constant enchantments and abilities are permanent modifiers, so every load
+  took them back off the base (wolf1438's report on the Discord hub, 2026-10-08, with the cause found: getavinfo showed
+  base 250 + permanent +50 = 300). A save already affected corrects itself on the next load.
+
 ## 1.0.6 - 2026-09-18 - untested
 
 ### Changed

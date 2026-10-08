@@ -47,20 +47,25 @@ namespace Carryweight
 	void Apply()
 	{
 		auto* player = RE::PlayerCharacter::GetSingleton();
-		if (!player || !player->Is3DLoaded()) { logger::debug("Apply: no loaded player yet"); return; }
+		// The player must be placed in a cell before its actor values mean anything (gate rule
+		// or-player-actor-values-need-a-placed-player); a load re-queues Apply once it is.
+		if (!player || !player->Is3DLoaded() || !player->parentCell) { logger::debug("Apply: no placed player yet"); return; }
 
 		State s;
 		auto* avOwner = player->AsActorValueOwner();
 		s.playerLevel = player->GetLevel();
 		s.carryWeightAV = avOwner->GetActorValue(RE::ActorValue::kCarryWeight);
 		s.permanentAV = avOwner->GetPermanentActorValue(RE::ActorValue::kCarryWeight);
+		s.baseAV = avOwner->GetBaseActorValue(RE::ActorValue::kCarryWeight);
 
 		// carry weight = starting + perLevel x (level - 1), for the CURRENT level
 		const float target = settings::general::startingWeight
 			+ static_cast<float>(std::max<int>(0, s.playerLevel - 1)) * settings::general::perLevel;
 		s.target = target;
 
-		const float delta = target - s.permanentAV;
+		// Measured against the BASE value only. Constant enchantments and abilities are permanent
+		// modifiers, so measuring base + permanent (up to 1.0.6) cancelled them on every load.
+		const float delta = target - s.baseAV;
 		if (std::fabs(delta) > 0.01F)
 		{
 			
@@ -70,14 +75,19 @@ namespace Carryweight
 			avOwner->ModActorValue(RE::ActorValue::kCarryWeight, delta);
 #endif
 			g_applied += delta;
-			logger::info("carry weight {:.1f} -> {:.1f} (level {}, starting {:.1f}, perLevel {:.1f}; net applied {:.1f})",
-						 s.permanentAV, target, s.playerLevel, settings::general::startingWeight, settings::general::perLevel, g_applied);
 			s.carryWeightAV = avOwner->GetActorValue(RE::ActorValue::kCarryWeight);
+			const float before = s.permanentAV;
 			s.permanentAV = avOwner->GetPermanentActorValue(RE::ActorValue::kCarryWeight);
+			logger::info("base carry weight {:.1f} -> {:.1f} (level {}, starting {:.1f}, perLevel {:.1f}; net applied {:.1f}); "
+						 "with enchantments and abilities {:.1f} -> {:.1f}",
+						 s.baseAV, target, s.playerLevel, settings::general::startingWeight, settings::general::perLevel, g_applied,
+						 before, s.permanentAV);
+			s.baseAV = avOwner->GetBaseActorValue(RE::ActorValue::kCarryWeight);
 		}
 		else
 		{
-			logger::debug("Apply: carry weight already {:.1f} at level {}", target, s.playerLevel);
+			logger::debug("Apply: base carry weight already {:.1f} at level {} (with enchantments and abilities {:.1f})",
+						  target, s.playerLevel, s.permanentAV);
 		}
 		s.applied = g_applied;
 

@@ -17,7 +17,7 @@ namespace Carryweight
 	namespace
 	{
 		constexpr std::uint32_t kRecordType = 'BONS';
-		constexpr std::uint32_t kRecordVersion = 1;
+		constexpr std::uint32_t kRecordVersion = 2;   // 2 (1.0.7): applied + the base value after the last apply
 
 		std::atomic<bool> g_installed{ false };
 
@@ -27,6 +27,13 @@ namespace Carryweight
 		// The net amount this mod has applied to the player's carry weight, mirrored in the
 		// co-save. Only main-thread Apply() writes it.
 		float g_applied = 0.0F;
+
+		// The base carry weight as it stood after the last apply, saved beside g_applied (record v2). The game does not
+		// keep this change to the player's carry-weight base across a save (logic library 36; Main Agent's 1.0.7 test,
+		// 2026-10-08: base 400 saved, 300 after the load), and adding the re-application on top of the saved amount
+		// made "applied" climb by the bonus on every load. The first apply after a load takes off what the game dropped.
+		float g_lastBase = 0.0F;
+		bool g_reconcile = false;   // set by a v2 co-save load, cleared by the first apply after it
 
 		// One waiting thread at most: set while Apply() is waiting for the player to be placed (new game).
 		std::atomic<bool> g_waitingForPlayer{ false };
@@ -91,6 +98,18 @@ namespace Carryweight
 			+ static_cast<float>(std::max<int>(0, s.playerLevel - 1)) * settings::general::perLevel;
 		s.target = target;
 
+		if (g_reconcile)
+		{
+			g_reconcile = false;
+			const float dropped = g_lastBase - s.baseAV;
+			if (std::fabs(dropped) > 0.01F)
+			{
+				g_applied -= dropped;
+				logger::debug("Apply: the save dropped {:.1f} of this mod's base change (saved base {:.1f}, now {:.1f}) - applied now {:.1f}",
+							  dropped, g_lastBase, s.baseAV, g_applied);
+			}
+		}
+
 		// Measured against the BASE value only. Constant enchantments and abilities are permanent
 		// modifiers, so measuring base + permanent (up to 1.0.6) cancelled them on every load.
 		const float delta = target - s.baseAV;
@@ -118,6 +137,7 @@ namespace Carryweight
 						  target, s.playerLevel, s.permanentAV);
 		}
 		s.applied = g_applied;
+		g_lastBase = s.baseAV;
 
 		std::scoped_lock l(g_stateLock);
 		s.applications = g_state.applications + 1;
@@ -148,28 +168,37 @@ namespace Carryweight
 		if (a_intfc->OpenRecord(kRecordType, kRecordVersion))
 		{
 			a_intfc->WriteRecordData(&g_applied, sizeof(g_applied));
+			a_intfc->WriteRecordData(&g_lastBase, sizeof(g_lastBase));
 		}
 	}
 
 	void OnLoad(SKSE::SerializationInterface* a_intfc)
 	{
 		g_applied = 0.0F;
+		g_lastBase = 0.0F;
+		g_reconcile = false;
 		std::uint32_t type = 0, version = 0, length = 0;
 		while (a_intfc->GetNextRecordInfo(type, version, length))
 		{
-			if (type == kRecordType && length == sizeof(float))
+			if (type != kRecordType) { continue; }
+			float v = 0.0F;
+			if (length >= sizeof(float) && a_intfc->ReadRecordData(&v, sizeof(v)) == sizeof(v)) { g_applied = v; }
+			// v1 (1.0.6 and older) holds only the applied amount, which may already have drifted; it is kept as it was.
+			if (version >= 2 && length >= 2 * sizeof(float) && a_intfc->ReadRecordData(&v, sizeof(v)) == sizeof(v))
 			{
-				float v = 0.0F;
-				if (a_intfc->ReadRecordData(&v, sizeof(v)) == sizeof(v)) { g_applied = v; }
+				g_lastBase = v;
+				g_reconcile = true;
 			}
 		}
-		logger::debug("co-save loaded: applied bonus {}", g_applied);
+		logger::debug("co-save loaded: applied bonus {}, base after the last apply {}", g_applied, g_lastBase);
 		RequestApply();  // a save just loaded - apply the formula for its level once
 	}
 
 	void OnRevert(SKSE::SerializationInterface*)
 	{
 		g_applied = 0.0F;
+		g_lastBase = 0.0F;
+		g_reconcile = false;
 	}
 
 	State GetState()

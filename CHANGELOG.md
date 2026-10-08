@@ -20,6 +20,11 @@ Rule 61: this mod's own history, kept beside the code it describes.
   character creation, the player was not placed yet, and nothing asked again until a save loaded, a level-up or Apply
   now - so a custom Starting weight did not reach a new character. The mod now asks again every 2 seconds until the
   player is placed (at most 20 minutes), then stops. Found in the in-game test of this release.
+- The co-save's "applied" amount no longer climbs on every load. The game does not keep this mod's change to the
+  carry-weight base across a save, so each load re-applies it, and the re-application used to be added on top of the
+  saved amount (100 became 200, then 300). The co-save now also stores the base after the last apply (record v2), and the
+  first apply after a load first takes off what the game dropped. Carry weight itself was always right; only the
+  reported number (log, DevBench state) drifted.
 
 ## 1.0.6 - 2026-09-18 - untested
 

@@ -35,11 +35,13 @@ namespace Carryweight
 	{
 		std::uint64_t applications = 0;  // how many times Apply() ran this session
 		std::uint16_t playerLevel = 0;
-		float applied = 0.0F;     // net amount this mod has added so far (co-save)
-		float target = 0.0F;      // what the formula says carry weight should be
+		float applied = 0.0F;     // this mod's share, a permanent modifier (co-save)
+		float target = 0.0F;      // the permanent carry weight once the share is in place
 		float carryWeightAV = 0.0F;  // current value incl. temporary modifiers
-		float permanentAV = 0.0F;    // base + permanent modifiers (enchantments, abilities)
-		float baseAV = 0.0F;         // base value only - what the formula governs (1.0.7)
+		float permanentAV = 0.0F;    // base + permanent modifiers (enchantments, abilities, this mod's share)
+		float baseAV = 0.0F;         // base value only - the race's, left alone since 1.0.8
+		float raceBase = 0.0F;       // the race record's baseCarryWeight (what a race mod such as Imperious edits)
+		bool cpcLoaded = false;      // Character Progression Control is loaded (its Carry Weight tab stands down)
 	};
 	State GetState();
 }

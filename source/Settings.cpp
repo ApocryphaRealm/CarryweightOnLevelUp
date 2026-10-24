@@ -2,6 +2,7 @@
 
 #include "Settings.h"
 
+#include "RaceShare.h"
 #include "utils/INISettingCollection.h"
 #include "utils/Logger.h"
 #include "utils/Setting.h"
@@ -86,16 +87,29 @@ namespace settings
 				return false;
 			}
 			const auto k = ReadKeys();
-			auto get = [&](const char* a_key, auto& a_out, auto a_parse) {
+			auto get = [&](const char* a_key, auto& a_out, auto a_parse, bool* a_saw = nullptr) {
 				const auto it = k.find(a_key);
 				if (it == k.end()) { logger::debug("INI key {} missing; keeping current value", a_key); return; }
-				if (!a_parse(it->second, a_out)) { logger::warn("INI value \"{}\" for {} is not valid; keeping current value", it->second, a_key); }
+				if (!a_parse(it->second, a_out)) { logger::warn("INI value \"{}\" for {} is not valid; keeping current value", it->second, a_key); return; }
+				if (a_saw) { *a_saw = true; }
 			};
 			get("uloglevel:debug", debug::logLevel, ParseUInt);
-			get("fstartingweight:general", general::startingWeight, ParseFloat);
+			bool sawStarting = false, sawOffset = false;
+			get("fstartingweight:general", general::startingWeight, ParseFloat, &sawStarting);
+			get("foffset:general", general::offset, ParseFloat, &sawOffset);
 			get("fperlevel:general", general::perLevel, ParseFloat);
-			logger::info("settings loaded from {}: startingWeight={:.1f} perLevel={:.1f} logLevel={}",
-						 iniPath, general::startingWeight, general::perLevel, debug::logLevel);
+			get("buseownbasevalues:general", general::ownBase, ParseBool);
+			get("bapplystartingvalues:general", general::startingValues, ParseBool);
+			// 1.0.8: carry weight goes on top of the race's. A 1.0.7 INI has only the absolute fStartingWeight; its offset is
+			// that minus the 300 every such value was set against.
+			if (sawStarting && !sawOffset)
+			{
+				general::offset = raceshare::OffsetFromStarting(general::startingWeight);
+				logger::info("fStartingWeight {:.1f} from an older version read as fOffset {:+.1f} on top of the race's carry weight (written that way at the "
+							 "next Save; bUseOwnBaseValues=1 keeps the old absolute behaviour)", general::startingWeight, general::offset);
+			}
+			logger::info("settings loaded from {}: offset={:+.1f} startingWeight={:.1f} perLevel={:.1f} ownBase={} startingValues={} logLevel={}",
+						 iniPath, general::offset, general::startingWeight, general::perLevel, general::ownBase, general::startingValues, debug::logLevel);
 			return true;
 		}
 
@@ -104,10 +118,18 @@ namespace settings
 			const std::string wantSection = Lower(a_section);
 			const std::string wantKey = Lower(a_key);
 			std::string section;
-			for (auto& line : a_lines)
+			std::size_t lastInSection = std::string::npos;   // index of the section's last non-blank line
+			for (std::size_t i = 0; i < a_lines.size(); ++i)
 			{
+				auto& line = a_lines[i];
 				const std::string t = Trim(line);
-				if (!t.empty() && t.front() == '[' && t.back() == ']') { section = Lower(t.substr(1, t.size() - 2)); continue; }
+				if (!t.empty() && t.front() == '[' && t.back() == ']')
+				{
+					section = Lower(t.substr(1, t.size() - 2));
+					if (section == wantSection) { lastInSection = i; }
+					continue;
+				}
+				if (section == wantSection && !t.empty()) { lastInSection = i; }
 				const auto eq = t.find('=');
 				if (eq == std::string::npos || section != wantSection) { continue; }
 				if (Lower(Trim(t.substr(0, eq))) == wantKey)
@@ -116,8 +138,21 @@ namespace settings
 					return true;
 				}
 			}
-			logger::warn("Save: key {} not found in [{}]", a_key, a_section);
-			return false;
+			// 1.0.8: a key an older INI does not have yet is added, at the end of its section (or in a new section),
+			// instead of being lost - fOffset and the two switches would otherwise never reach an upgraded INI.
+			const std::string newLine = std::string(a_key) + "=" + a_value;
+			if (lastInSection != std::string::npos)
+			{
+				a_lines.insert(a_lines.begin() + static_cast<std::ptrdiff_t>(lastInSection + 1), newLine);
+			}
+			else
+			{
+				if (!a_lines.empty() && !Trim(a_lines.back()).empty()) { a_lines.emplace_back(); }
+				a_lines.push_back(std::string("[") + a_section + "]");
+				a_lines.push_back(newLine);
+			}
+			logger::info("Save: {} added to [{}] (it was not in the INI yet)", a_key, a_section);
+			return true;
 		}
 
 		std::string FormatFloat(float a_v)
@@ -164,8 +199,11 @@ namespace settings
 
 		bool ok = true;
 		ok &= WriteKey(lines, "Debug", "uLogLevel", std::to_string(debug::logLevel));
+		ok &= WriteKey(lines, "General", "fOffset", FormatFloat(general::offset));
 		ok &= WriteKey(lines, "General", "fStartingWeight", FormatFloat(general::startingWeight));
 		ok &= WriteKey(lines, "General", "fPerLevel", FormatFloat(general::perLevel));
+		ok &= WriteKey(lines, "General", "bUseOwnBaseValues", general::ownBase ? "1" : "0");
+		ok &= WriteKey(lines, "General", "bApplyStartingValues", general::startingValues ? "1" : "0");
 
 		std::ofstream out(iniPath, std::ios::trunc);
 		if (!out) { logger::error("Save: could not open {} for writing", iniPath); return false; }
@@ -177,8 +215,11 @@ namespace settings
 	void RestoreDefaults()
 	{
 		debug::logLevel = defaults.logLevel;
+		general::offset = 0.0F;
 		general::startingWeight = defaults.startingWeight;
 		general::perLevel = defaults.perLevel;
+		general::ownBase = false;
+		general::startingValues = true;
 		ApplyLogLevel();
 	}
 

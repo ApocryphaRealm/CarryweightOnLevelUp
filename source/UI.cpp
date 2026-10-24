@@ -115,8 +115,37 @@ namespace UI
 			ImGuiMCP::SeparatorText(strings::TR("COLU_CarryWeight", "Carry weight"));
 
 			bool changed = false;
-			changed |= NudgeableSlider(strings::TR("COLU_StartingWeight", "Starting weight"), &general::startingWeight, 0.0F, 1000.0F, "%.0f", 5.0F);
-			HelpMarker(strings::TR("COLU_HelpStartingWeight", "Carry weight at level 1. Vanilla Skyrim starts at 300."));
+			const auto st = Carryweight::GetState();
+			if (st.cpcLoaded)
+			{
+				ImGuiMCP::TextDisabled("%s", strings::TR("COLU_CpcStandsDown", "Character Progression Control is loaded too: its Carry Weight tab stands down while this mod is loaded, so only this page sets carry weight."));
+			}
+			// 1.0.8 (the owner, 2026-10-24): on top of the race by default; two switches
+			bool starting = general::startingValues;
+			if (ImGuiMCP::Toggle(strings::TR("COLU_StartingValues", "Set starting values"), &starting)) { general::startingValues = starting; changed = true; }
+			HelpMarker(strings::TR("COLU_HelpStartingValues", "On by default. Off: your starting carry weight stays as your race and other mods set it, and only the per-level gain below is added."));
+			bool own = general::ownBase;
+			if (ImGuiMCP::Toggle(strings::TR("COLU_OwnBase", "Use our base values instead of the race's"), &own)) { general::ownBase = own; changed = true; }
+			HelpMarker(strings::TR("COLU_HelpOwnBase", "Off by default: this mod adds its carry weight on top of what your race (and any race mod) sets. On: your carry weight is set to the formula total below, replacing what the race and other mods set. Turning it off again gives the race's value back exactly."));
+
+			if (!general::startingValues)
+			{
+				ImGuiMCP::TextDisabled("%s", strings::TR("COLU_StartingOff", "Starting values are off: your race's starting carry weight is left alone and only the per-level gain applies."));
+			}
+			else if (general::ownBase)
+			{
+				changed |= NudgeableSlider(strings::TR("COLU_StartingWeight", "Starting weight"), &general::startingWeight, 0.0F, 1000.0F, "%.0f", 5.0F);
+				HelpMarker(strings::TR("COLU_HelpStartingWeight", "Carry weight at level 1. Vanilla Skyrim starts at 300."));
+			}
+			else
+			{
+				changed |= NudgeableSlider(strings::TR("COLU_Offset", "Offset from your race's starting carry weight"), &general::offset, -500.0F, 1000.0F, "%+.0f", 5.0F);
+				HelpMarker(strings::TR("COLU_HelpOffset", "Added on top of your race's carry weight at level 1; 0 keeps your race's own value. An Altmer under Imperious starts at 250, so +20 gives 270."));
+			}
+			if (st.playerLevel > 0)
+			{
+				ImGuiMCP::TextDisabled(strings::TR("COLU_RaceLine", "Your race starts at %.0f; your base carry weight now %.0f"), st.raceBase, st.baseAV);
+			}
 
 			changed |= NudgeableSlider(strings::TR("COLU_PerLevel", "Per level"), &general::perLevel, 0.0F, 25.0F, "%.1f", 0.5F);
 			HelpMarker(strings::TR("COLU_HelpPerLevel", "Carry weight added for every level above 1."));
@@ -131,8 +160,21 @@ namespace UI
 			HelpMarker(strings::TR("COLU_HelpApplyNow", "Reissues the formula for your current level with the values above. It also runs by itself when a save loads, when you level up, and when you move a slider - nothing runs in the background."));
 
 			const auto s = Carryweight::GetState();
-			ImGuiMCP::Text(strings::TR("COLU_LevelFormula", "Level %u: %.0f + %.1f x %u = %.0f carry weight"), s.playerLevel, general::startingWeight, general::perLevel,
-						   s.playerLevel > 0 ? s.playerLevel - 1 : 0, s.target);
+			const unsigned steps = s.playerLevel > 0 ? s.playerLevel - 1 : 0;
+			if (!general::startingValues)
+			{
+				ImGuiMCP::Text(strings::TR("COLU_LevelFormulaGrowth", "Level %u: race and other mods + %.1f x %u = %.0f carry weight"), s.playerLevel, general::perLevel, steps, s.target);
+			}
+			else if (general::ownBase)
+			{
+				ImGuiMCP::Text(strings::TR("COLU_LevelFormula", "Level %u: %.0f + %.1f x %u = %.0f carry weight"), s.playerLevel, general::startingWeight, general::perLevel,
+							   steps, s.target);
+			}
+			else
+			{
+				ImGuiMCP::Text(strings::TR("COLU_LevelFormulaAdd", "Level %u: race and other mods %+.0f + %.1f x %u = %.0f carry weight"), s.playerLevel, general::offset,
+							   general::perLevel, steps, s.target);
+			}
 		}
 
 		void RenderDebugSection()

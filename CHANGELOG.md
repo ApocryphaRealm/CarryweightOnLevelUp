@@ -7,6 +7,31 @@ Rule 61: this mod's own history, kept beside the code it describes.
 > number; at `.9` the MINOR rolls. The next number is LAST WORKING + 1; failed/scratch/
 > untested numbers are reused. Numbers come from version-ledger.ps1 + set-version.ps1.
 
+## 1.0.8 - 2026-10-24 - untested
+
+### Changed
+- **Carry weight is added on top of your race's, so race mods keep their numbers** (the owner, 2026-10-24: "should
+  read what the race's base carry weight ... and then apply over the top of it so that it's compatible with race
+  mods"; a Nexus question about Imperious). The mod set the base carry weight to its formula, so an Altmer's 250 or an
+  Argonian's 325 under Imperious became 300 at level 1. Now it holds only its own share - fOffset + fPerLevel x
+  (level - 1) - on top of the race's carry weight and whatever other mods add. An INI from 1.0.7 has only
+  fStartingWeight; it is read as the offset (that - 300) and logged once, and Save now adds keys an older INI lacks.
+  The page shows your race's carry weight and your base carry weight, read-only.
+- **The share is a permanent modifier, not a change to the base.** The base is the race's number, and the game
+  rebuilds the player's base carry weight from the race at every load (1.0.7's test: base 400 saved, 300 after the
+  load), which is why 1.0.7 had to reconcile against the saved base; that reconcile is gone. Slot 06 with kPermanent
+  is used on both build lines (SE's RestoreActorValue, the 1.7 line's ModActorValue(modifier, ...)) - to be proven in
+  game. A save from 1.0.7 starts the share from 0 (its share was in the base, which that load rebuilt). Co-save v3.
+
+### Added
+- Two switches ([General]; 11 languages): "Use our base values instead of the race's" (off by default - on: carry
+  weight is set to fStartingWeight + fPerLevel x (level - 1), replacing what the race and other mods set; off again
+  gives the race's value back exactly) and "Set starting values" (on by default - off: only fPerLevel x (level - 1) is
+  added, the starting carry weight stays the race's). include\RaceShare.h is the arithmetic, shared with Character
+  Progression Control 1.1.10; tools\race_share_check.bat checks it (20 checks).
+- When Character Progression Control is loaded too, the page and the log say that its Carry Weight tab stands down,
+  so one owner is named in both places.
+
 ## 1.0.7 - 2026-10-08 - untested
 
 ### Fixed

@@ -5,6 +5,7 @@
 #include "SKSEMenuFramework.h"
 
 #include "Carryweight.h"
+#include "PreciseSlider.h"
 #include "Settings.h"
 
 #include "utils/Logger.h"
@@ -47,6 +48,10 @@ namespace UI
 				"igSeparatorText",
 				"igCombo_Str_arr",
 				"igSliderFloat",
+				// precise::SliderFloat (include/PreciseSlider.h, rule 68) asks these to tell a nudge from a drag.
+				"igIsKeyDown_Nil",
+				"igIsMouseDown_Nil",
+				"igNavMoveRequestCancel",   // the selected slider keeps the arrow keys (NudgeableSlider)
 				"igIsKeyPressed_Bool",
 				"igIsItemClicked",
 				"igIsItemActive",
@@ -87,21 +92,28 @@ namespace UI
 			}
 		}
 
+		// 1.0.8 (rule 68): drawn through precise::SliderFloat, and the arrow-key nudge moves one unit of the digit the format
+		// shows ("%.1f" -> 0.1) - the step each caller passes is no longer used. A frame where the slider itself already
+		// moved the value adds no second nudge.
 		bool NudgeableSlider(const char* a_label, float* a_value, float a_min, float a_max,
-							 const char* a_format, float a_step)
+							 const char* a_format, float /*a_step*/)
 		{
-			bool changed = ImGuiMCP::SliderFloat(a_label, a_value, a_min, a_max, a_format);
+			bool changed = precise::SliderFloat(a_label, a_value, a_min, a_max, a_format);
 			if (ImGuiMCP::IsItemClicked() || ImGuiMCP::IsItemActive()) { selectedSlider = a_label; }
 			if (selectedSlider == a_label)
 			{
+				const float step = static_cast<float>(precise::Step(a_format));
 				float nudge = 0.0F;
-				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_LeftArrow) || ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_DownArrow)) { nudge -= a_step; }
-				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_RightArrow) || ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_UpArrow)) { nudge += a_step; }
-				if (nudge != 0.0F)
+				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_LeftArrow) || ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_DownArrow)) { nudge -= step; }
+				if (ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_RightArrow) || ImGuiMCP::IsKeyPressed(ImGuiMCP::ImGuiKey_UpArrow)) { nudge += step; }
+				if (nudge != 0.0F && !changed)
 				{
 					*a_value = std::clamp(*a_value + nudge, a_min, a_max);
 					changed = true;
 				}
+				// The arrow is this slider's: cancel the keyboard-navigation move ImGui made from the same press, or focus
+				// jumps to the next control and a held key stops after one step (Dragon's Eye Minimap, test 36ae).
+				if (nudge != 0.0F) { ImGuiMCP::NavMoveRequestCancel(); }
 				ImGuiMCP::SameLine();
 				ImGuiMCP::TextDisabled("%s", strings::TR("COLU_NudgeArrows", "<-->"));
 			}

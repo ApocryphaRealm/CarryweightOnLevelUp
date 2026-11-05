@@ -7,7 +7,7 @@ Rule 61: this mod's own history, kept beside the code it describes.
 > number; at `.9` the MINOR rolls. The next number is LAST WORKING + 1; failed/scratch/
 > untested numbers are reused. Numbers come from version-ledger.ps1 + set-version.ps1.
 
-## 1.0.8 - 2026-10-24 - untested
+## 1.1.0 - 2026-10-24 - untested
 
 ### Changed
 - **Sliders move one shown digit per nudge** (rule 68, the package gate's sliders-are-precise). The settings sliders are drawn through precise::SliderFloat (include/PreciseSlider.h, as the other mods), and the arrow-key nudge steps one unit of the digit the format shows instead of the step each slider carried: the offset and starting weight now move 1 per press, not 5, and per level 0.1, not 0.5. A held arrow key keeps nudging. A number typed into a slider (Ctrl+click) is clamped to the slider's range.
@@ -29,7 +29,7 @@ Rule 61: this mod's own history, kept beside the code it describes.
   weight is set to fStartingWeight + fPerLevel x (level - 1), replacing what the race and other mods set; off again
   gives the race's value back exactly) and "Set starting values" (on by default - off: only fPerLevel x (level - 1) is
   added, the starting carry weight stays the race's). include\RaceShare.h is the arithmetic, shared with Character
-  Progression Control 1.1.10; tools\race_share_check.bat checks it (20 checks).
+  Progression Control 1.2.0; tools\race_share_check.bat checks it (20 checks).
 - When Character Progression Control is loaded too, the page and the log say that its Carry Weight tab stands down,
   so one owner is named in both places.
 

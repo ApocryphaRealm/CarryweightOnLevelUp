@@ -100,7 +100,7 @@ namespace settings
 			get("fperlevel:general", general::perLevel, ParseFloat);
 			get("buseownbasevalues:general", general::ownBase, ParseBool);
 			get("bapplystartingvalues:general", general::startingValues, ParseBool);
-			// 1.0.8: carry weight goes on top of the race's. A 1.0.7 INI has only the absolute fStartingWeight; its offset is
+			// 1.1.0: carry weight goes on top of the race's. A 1.0.7 INI has only the absolute fStartingWeight; its offset is
 			// that minus the 300 every such value was set against.
 			if (sawStarting && !sawOffset)
 			{
@@ -138,7 +138,7 @@ namespace settings
 					return true;
 				}
 			}
-			// 1.0.8: a key an older INI does not have yet is added, at the end of its section (or in a new section),
+			// 1.1.0: a key an older INI does not have yet is added, at the end of its section (or in a new section),
 			// instead of being lost - fOffset and the two switches would otherwise never reach an upgraded INI.
 			const std::string newLine = std::string(a_key) + "=" + a_value;
 			if (lastInSection != std::string::npos)

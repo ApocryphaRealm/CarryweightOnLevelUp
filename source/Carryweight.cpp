@@ -21,7 +21,7 @@ namespace Carryweight
 	namespace
 	{
 		constexpr std::uint32_t kRecordType = 'BONS';
-		// 3 (1.0.8): applied + the permanent value after the last apply; the share is a PERMANENT MODIFIER. A 1 or 2 record's
+		// 3 (1.1.0): applied + the permanent value after the last apply; the share is a PERMANENT MODIFIER. A 1 or 2 record's
 		// share went into the base, which the game rebuilds from the race at every load, so nothing of it is left: read as 0.
 		constexpr std::uint32_t kRecordVersion = 3;
 
@@ -36,7 +36,7 @@ namespace Carryweight
 
 		// The permanent carry weight as it stood after the last apply (record v3). Up to 1.0.7 the share went into the BASE,
 		// which the game does not keep across a save (logic library 36; Main Agent's 1.0.7 test, 2026-10-08: base 400
-		// saved, 300 after the load) - and the base is the race mod's number. 1.0.8 holds the share as a permanent modifier
+		// saved, 300 after the load) - and the base is the race mod's number. 1.1.0 holds the share as a permanent modifier
 		// instead; should a load still come back without it (the permanent value is the saved one minus exactly the
 		// share), the first apply after the load starts the share from 0 rather than trusting the co-save.
 		float g_lastPermanent = 0.0F;
@@ -45,7 +45,7 @@ namespace Carryweight
 
 		// Slot 05 (SE's ModActorValue, 7.x's ModBaseActorValue) changes the base; slot 06 with kPermanent (SE's
 		// RestoreActorValue, 7.x's ModActorValue(modifier, ...)) moves the permanent modifier. To be proven in game on each
-		// line (the 1.0.8 test request).
+		// line (the 1.1.0 test request).
 		void Modify(RE::ActorValueOwner* a_owner, float a_delta)
 		{
 #if RUNTIME_LINE == 17
@@ -132,7 +132,7 @@ namespace Carryweight
 			}
 		}
 
-		// 1.0.8 (include/RaceShare.h): this mod holds a SHARE of the permanent carry weight and moves only that.
+		// 1.1.0 (include/RaceShare.h): this mod holds a SHARE of the permanent carry weight and moves only that.
 		//   additive (default): offset + perLevel x (level - 1) on top of the race's carry weight and every other mod's;
 		//   bUseOwnBaseValues:  the total is fStartingWeight + perLevel x (level - 1), whatever the race and others set;
 		//   bApplyStartingValues off: perLevel x (level - 1) only.

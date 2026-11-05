@@ -1,4 +1,4 @@
-Carryweight on Level Up 1.0.8
+Carryweight on Level Up 1.1.0
 
 Dual-line build (SKSE plugin). The installer asks which Skyrim you have and installs
 the matching DLL:
@@ -13,7 +13,7 @@ Source: https://github.com/ApocryphaRealm/CarryweightOnLevelUp
 WHAT CHANGED
 ------------
 
-Version 1.0.8
+Version 1.1.0
 Carry weight is added on top of your race's, so race mods such as Imperious keep their numbers: an Altmer's 250 or an Argonian's 325 stays, and this mod adds an Offset plus its per-level gain on top. A Starting weight set in an older version is read as an offset of (that - 300). The page shows your race's carry weight and your base carry weight.
 New switch: Use our base values instead of the race's - your carry weight is set to Starting weight plus per level times (level minus 1), replacing what the race and other mods set; switching it off gives the race's value back exactly.
 New switch: Set starting values (on by default) - off, your starting carry weight stays the race's and only the per-level gain is added.

@@ -92,7 +92,7 @@ namespace UI
 			}
 		}
 
-		// 1.0.8 (rule 68): drawn through precise::SliderFloat, and the arrow-key nudge moves one unit of the digit the format
+		// 1.1.0 (rule 68): drawn through precise::SliderFloat, and the arrow-key nudge moves one unit of the digit the format
 		// shows ("%.1f" -> 0.1) - the step each caller passes is no longer used. A frame where the slider itself already
 		// moved the value adds no second nudge.
 		bool NudgeableSlider(const char* a_label, float* a_value, float a_min, float a_max,
@@ -132,7 +132,7 @@ namespace UI
 			{
 				ImGuiMCP::TextDisabled("%s", strings::TR("COLU_CpcStandsDown", "Character Progression Control is loaded too: its Carry Weight tab stands down while this mod is loaded, so only this page sets carry weight."));
 			}
-			// 1.0.8 (the owner, 2026-10-24): on top of the race by default; two switches
+			// 1.1.0 (the owner, 2026-10-24): on top of the race by default; two switches
 			bool starting = general::startingValues;
 			if (ImGuiMCP::Toggle(strings::TR("COLU_StartingValues", "Set starting values"), &starting)) { general::startingValues = starting; changed = true; }
 			HelpMarker(strings::TR("COLU_HelpStartingValues", "On by default. Off: your starting carry weight stays as your race and other mods set it, and only the per-level gain below is added."));

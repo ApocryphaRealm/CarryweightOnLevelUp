@@ -39,7 +39,7 @@ namespace Carryweight
 		float target = 0.0F;      // the permanent carry weight once the share is in place
 		float carryWeightAV = 0.0F;  // current value incl. temporary modifiers
 		float permanentAV = 0.0F;    // base + permanent modifiers (enchantments, abilities, this mod's share)
-		float baseAV = 0.0F;         // base value only - the race's, left alone since 1.0.8
+		float baseAV = 0.0F;         // base value only - the race's, left alone since 1.1.0
 		float raceBase = 0.0F;       // the race record's baseCarryWeight (what a race mod such as Imperious edits)
 		bool cpcLoaded = false;      // Character Progression Control is loaded (its Carry Weight tab stands down)
 	};
